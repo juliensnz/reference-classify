@@ -62,6 +62,12 @@ class ClassifyCommand extends Command
         $this->io->text(sprintf('We will scan the images in %s and put the result in the "%s" attribute', implode(', ', $imageAttributeCodes), $tagAttribute));
         $this->io->section('Starting the process');
 
+        if (!$this->rawTagExists($referenceEntityCode, $tagAttribute)) {
+            $this->io->error(sprintf('The "%s" attribute doesn\'t exists or is not of text type, value per locale or channel', $tagAttribute));
+
+            exit();
+        }
+
         $records = $this->fetchAllRecords($referenceEntityCode);
         $recordsToWrite = [];
         $progressBar = $this->io->createProgressBar();
@@ -138,6 +144,23 @@ class ClassifyCommand extends Command
         }, $imageAttributes);
 
         return $imageAttributeCodes;
+    }
+
+    private function rawTagExists(string $referenceEntityCode, string $tagAttribute): bool
+    {
+        $attributes = $this->apiClient->getReferenceEntityAttributeApi()->all($referenceEntityCode);
+
+        $tagAttribute = array_filter($attributes, function (array $attribute) use ($tagAttribute) {
+            return $tagAttribute === $attribute['code'];
+        });
+
+        if (empty($tagAttribute)) {
+            return false;
+        }
+
+        $tagAttribute = current($tagAttribute);
+
+        return 'text' === $tagAttribute['type'] && false === $tagAttribute['value_per_channel'] && false === $tagAttribute['value_per_locale'];
     }
 
     private function fetchAllRecords(string $referenceEntityCode)
