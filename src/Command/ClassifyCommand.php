@@ -55,13 +55,18 @@ class ClassifyCommand extends Command
         $referenceEntityCode = $input->getArgument('referenceEntityCode');
         $tagAttribute = $input->getOption('tagAttribute');
         $threshold = $input->getOption('confidenceThreshold');
-
-        $records = $this->fetchAllRecords($referenceEntityCode);
         $imageAttributeCodes = $this->fetchImageAttributeCodes($referenceEntityCode);
 
+        $this->io->title('Record classifier');
+        $this->io->text(sprintf('Welcome in the record identifier, we will classify the "%s" Reference entity', $referenceEntityCode));
+        $this->io->text(sprintf('We will scan the images in %s and put the result in the "%s" attribute', implode(', ', $imageAttributeCodes), $tagAttribute));
+        $this->io->section('Starting the process');
+
+        $records = $this->fetchAllRecords($referenceEntityCode);
         $recordsToWrite = [];
         $progressBar = $this->io->createProgressBar();
         $progressBar->start(iterator_count($records));
+        $taggedRecordCount = 0;
         foreach ($records as $record) {
             $tags = $this->getTags($record['values'], $imageAttributeCodes, (int) $threshold);
             if (empty($tags)) {
@@ -79,6 +84,7 @@ class ClassifyCommand extends Command
             ];
 
             $recordsToWrite[] = $record;
+            $taggedRecordCount++;
 
             if (count($recordsToWrite) >= self::BATCH_SIZE) {
                 $this->writeRecords($referenceEntityCode, $recordsToWrite);
@@ -93,6 +99,11 @@ class ClassifyCommand extends Command
         }
 
         $progressBar->finish();
+
+        $this->io->newLine();
+        $this->io->newLine();
+        $this->io->section('Process finished');
+        $this->io->text(sprintf('%s record processed', $taggedRecordCount));
     }
 
     private function getTags(array $values, array $imageAttributeCodes, int $threshold): array
